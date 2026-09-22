@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E9ECF1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#171B24" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="いつか帳">
+<title>いつか帳</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E9ECF1; --paper:#FFFFFF; --ink:#1F2535; --sub:#6B7385; --line:#D5DAE3; --danger:#C8423A;
+  --soft-mix:26%;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){ --bg:#171B24; --paper:#222836; --ink:#EEF0F5; --sub:#98A0B3; --line:#333A4A; --soft-mix:22%; }
+}
+:root[data-theme="dark"]{ --bg:#171B24; --paper:#222836; --ink:#EEF0F5; --sub:#98A0B3; --line:#333A4A; --soft-mix:22%; }
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  font-size:16px;line-height:1.55;-webkit-tap-highlight-color:transparent}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid #7DB7F0;outline-offset:2px;border-radius:8px}
+[data-cc]{--soft:color-mix(in srgb, var(--c) var(--soft-mix), var(--paper))}
+
+.wrap{max-width:560px;margin:0 auto;padding:18px 16px 200px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px}
+h1{font-size:26px;font-weight:700;margin:0;letter-spacing:.02em}
+.search{flex:1;max-width:190px;border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:6px 14px;font-size:14px}
+
+.scroller{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:4px 16px}
+.scroller::-webkit-scrollbar{display:none}
+
+/* filter tabs */
+.tabs{margin-bottom:14px}
+.tab{flex:none;min-width:70px;border:0;background:var(--paper);border-radius:12px 12px 4px 4px;padding:8px 10px 6px;text-align:center;
+  border-bottom:4px solid var(--c,var(--line));transition:transform .15s}
+.tab b{display:block;font-size:20px;line-height:1.1}
+.tab span{font-size:12px;color:var(--sub);white-space:nowrap}
+.tab[aria-pressed="true"]{transform:translateY(-3px);box-shadow:0 3px 0 var(--line);background:var(--soft)}
+.tab.all[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.tab.all[aria-pressed="true"] span{color:inherit;opacity:.75}
+
+ul{list-style:none;margin:0;padding:0}
+.item{display:flex;align-items:center;gap:10px;background:var(--paper);border-radius:6px 14px 14px 6px;
+  padding:12px 12px 12px 14px;margin-bottom:8px;border-left:6px solid var(--c,var(--line))}
+.item.new{animation:pop .35s ease-out}
+@keyframes pop{from{transform:scale(.96);opacity:.4}to{transform:none;opacity:1}}
+.body{flex:1;min-width:0;border:0;background:none;text-align:left;padding:0}
+.t{display:block;word-break:break-word}
+.m{display:block;font-size:12px;color:var(--sub);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chk{flex:none;width:30px;height:30px;border-radius:50%;border:2px solid var(--line);background:none;display:grid;place-items:center}
+.chk svg{width:16px;height:16px;opacity:0}
+.done .chk{background:var(--ink);border-color:var(--ink)}
+.done .chk svg{opacity:1;stroke:var(--paper)}
+.done .t{text-decoration:line-through;color:var(--sub)}
+
+.empty{text-align:center;color:var(--sub);padding:36px 12px;font-size:15px}
+.doneToggle{border:0;background:none;color:var(--sub);font-size:14px;padding:14px 4px 8px}
+.foot{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:28px;font-size:13px}
+.foot button{border:0;background:none;color:var(--sub);text-decoration:underline}
+
+/* composer */
+.composer{position:fixed;left:0;right:0;bottom:0;background:var(--paper);border-top:1px solid var(--line);
+  padding:8px 0 calc(12px + env(safe-area-inset-bottom,0px))}
+.composer .in{max-width:560px;margin:0 auto;padding:0 12px}
+.composer .scroller{margin:0 -12px 6px;padding:4px 12px}
+.cat{flex:none;border:0;border-radius:999px;padding:6px 14px;font-size:14px;font-weight:500;background:var(--bg);white-space:nowrap}
+.cat[aria-pressed="true"]{background:var(--c);color:#1F2535}
+.cat.plus{background:none;border:2px dashed var(--line);color:var(--sub);padding:4px 12px}
+.row{display:flex;gap:8px}
+.row input{flex:1;min-width:0;border:2px solid var(--line);background:var(--bg);border-radius:14px;padding:11px 14px;font-size:16px}
+.row input:focus{border-color:var(--ink);outline:none}
+.add{flex:none;border:0;border-radius:14px;background:var(--ink);color:var(--paper);padding:0 18px;font-weight:700}
+.add:disabled{opacity:.35}
+
+/* sheets */
+.scrim{position:fixed;inset:0;background:rgba(15,18,28,.45);display:none;align-items:flex-end;justify-content:center;z-index:10}
+.scrim.open{display:flex}
+.sheet{background:var(--paper);width:100%;max-width:560px;max-height:88%;overflow-y:auto;border-radius:20px 20px 0 0;
+  padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));animation:up .22s ease-out}
+@keyframes up{from{transform:translateY(40px);opacity:.5}to{transform:none;opacity:1}}
+.sheet h2{font-size:17px;margin:0 0 12px}
+.sheet label{display:block;font-size:13px;color:var(--sub);margin:12px 0 4px}
+.sheet input[type=text],.sheet textarea{width:100%;border:2px solid var(--line);background:var(--bg);border-radius:12px;padding:10px 12px;font-size:16px}
+.sheet textarea{min-height:84px;resize:vertical}
+.sheet .scroller{margin:0 -16px}
+.acts{display:flex;gap:8px;margin-top:18px}
+.acts button{flex:1;border:0;border-radius:12px;padding:12px;font-weight:700}
+.save{background:var(--ink);color:var(--paper)}
+.del{background:none!important;color:var(--danger);flex:none!important;padding:12px 8px!important}
+.cancel{background:var(--bg)}
+.link{display:inline-block;margin-top:8px;font-size:14px;color:#2F6FB3;word-break:break-all}
+
+/* category manager */
+.crow{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.crow input[type=text]{flex:1;min-width:0;padding:8px 10px!important}
+.dot{flex:none;width:30px;height:30px;border-radius:50%;border:3px solid var(--paper);box-shadow:0 0 0 2px var(--line);background:var(--c)}
+.cnum{flex:none;font-size:12px;color:var(--sub);width:36px;text-align:right}
+.x{flex:none;border:0;background:none;color:var(--danger);font-size:14px;padding:6px}
+.swatches{display:flex;gap:8px;flex-wrap:wrap;padding:8px 0 4px}
+.sw{width:30px;height:30px;border-radius:50%;border:0;background:var(--c)}
+.sw[aria-pressed="true"]{box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--ink)}
+.newcat{display:flex;gap:8px;margin-top:6px}
+.newcat button{flex:none;border:0;border-radius:12px;background:var(--ink);color:var(--paper);padding:0 16px;font-weight:700}
+.newcat button:disabled{opacity:.35}
+.help{font-size:12px;color:var(--sub);margin:6px 0 0}
+
+.toast{position:fixed;left:50%;bottom:calc(160px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+  background:var(--ink);color:var(--paper);padding:8px 16px;border-radius:999px;font-size:14px;display:none;z-index:20;
+  align-items:center;gap:12px;max-width:92vw}
+.toast.show{display:flex}
+.toast button{border:0;background:none;color:#F3C94B;font-weight:700;padding:0;white-space:nowrap}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>いつか帳</h1>
+    <input class="search" id="q" type="search" placeholder="さがす" aria-label="メモを検索">
+  </header>
+
+  <nav class="tabs scroller" id="tabs" aria-label="絞り込み"></nav>
+
+  <ul id="list"></ul>
+  <div class="empty" id="empty" hidden></div>
+
+  <button class="doneToggle" id="doneToggle" hidden></button>
+  <ul id="doneList" hidden></ul>
+
+  <div class="foot">
+    <button id="manageBtn">カテゴリを編集</button>
+    <button id="exportBtn">書き出す</button>
+    <button id="importBtn">読み込む</button>
+  </div>
+</div>
+
+<div class="composer">
+  <div class="in">
+    <div class="scroller" id="cats"></div>
+    <form class="row" id="form" onsubmit="return false">
+      <input id="text" type="text" enterkeyhint="done" autocomplete="off" aria-label="メモを入力">
+      <button class="add" id="addBtn" type="submit" disabled>追加</button>
+    </form>
+  </div>
+</div>
+
+<!-- item edit -->
+<div class="scrim" id="editScrim">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+    <h2 id="editTitle">メモを編集</h2>
+    <div class="scroller" id="editCats"></div>
+    <label for="editText">内容</label>
+    <input id="editText" type="text">
+    <label for="editNote">メモ・URL</label>
+    <textarea id="editNote" placeholder="値段、配信サービス、住所、材料、誰に聞いたか など"></textarea>
+    <a class="link" id="editLink" target="_blank" rel="noopener" hidden></a>
+    <div class="acts">
+      <button class="del" id="delBtn">削除</button>
+      <button class="cancel" data-close>閉じる</button>
+      <button class="save" id="saveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- category manager -->
+<div class="scrim" id="catScrim">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="catTitle">
+    <h2 id="catTitle">カテゴリ</h2>
+    <div id="catRows"></div>
+    <label for="newName">新しいカテゴリ</label>
+    <div class="newcat">
+      <input id="newName" type="text" maxlength="12" placeholder="例：学びたい、会いたい、読みたい">
+      <button id="newAdd" disabled>追加</button>
+    </div>
+    <div class="swatches" id="newSwatches" role="group" aria-label="色"></div>
+    <p class="help">名前は直接書き換えられます。丸をタップすると色が変わります。</p>
+    <div class="acts"><button class="save" data-close>完了</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastMsg"></span><button id="undoBtn">元に戻す</button></div>
+
+<script>
+(() => {
+  const KEY = 'itsuka-v1';
+  const COLORS = ['#F3C94B','#7DB7F0','#7FCB9B','#F29E7A','#B79AE8','#EE9BC0','#6CCCC6','#C9B48F','#B8BEC9'];
+  const DEFAULT_CATS = [
+    { id:'want',  name:'欲しい',   color:'#F3C94B', hint:'なにが欲しい？' },
+    { id:'watch', name:'観たい',   color:'#7DB7F0', hint:'なにを観たい？' },
+    { id:'go',    name:'行きたい', color:'#7FCB9B', hint:'どこに行きたい？' },
+    { id:'eat',   name:'食べたい', color:'#F29E7A', hint:'なにを食べたい？' },
+    { id:'make',  name:'作りたい', color:'#B79AE8', hint:'なにを作りたい？' },
+  ];
+  const $ = id => document.getElementById(id);
+
+  const store = {
+    get(k, fb){ try{ const v = localStorage.getItem(k); return v == null ? fb : JSON.parse(v); }catch(e){ return fb; } },
+    set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+  };
+
+  let items = store.get(KEY, []); if (!Array.isArray(items)) items = [];
+  let cats = store.get(KEY+':cats', null);
+  if (!Array.isArray(cats) || !cats.length) cats = DEFAULT_CATS.map(c => ({...c}));
+  let filter = 'all';
+  let addCat = store.get(KEY+':addcat', null);
+  let showDone = false, editingId = null, editCat = null, lastAddedId = null;
+  let newColor = COLORS[5], undoSnap = null, toastTimer = null;
+
+  const saveItems = () => store.set(KEY, items);
+  const saveCats = () => store.set(KEY+':cats', cats);
+  const catOf = id => cats.find(c => c.id === id) || cats[0];
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const urlIn = s => (s.match(/https?:\/\/[^\s]+/) || [])[0];
+  const hintOf = c => c.hint || `「${c.name}」を書く`;
+  const cc = c => `data-cc style="--c:${c.color}"`;
+
+  // items pointing at a missing category fall back to the first one
+  items.forEach(it => { if (!cats.some(c => c.id === it.cat)) it.cat = cats[0].id; });
+  if (!cats.some(c => c.id === addCat)) addCat = cats[0].id;
+
+  function ago(ts){
+    const d = Math.floor((Date.now() - ts) / 86400000);
+    if (d < 1) return '今日'; if (d < 2) return '昨日';
+    if (d < 30) return d + '日前'; if (d < 365) return Math.floor(d/30) + 'か月前';
+    return Math.floor(d/365) + '年前';
+  }
+
+  function rowHTML(it){
+    const c = catOf(it.cat);
+    const note = it.note ? it.note.split('\n')[0] : '';
+    const meta = [ filter === 'all' ? c.name : null, it.done ? '済み' : ago(it.created), note || null ].filter(Boolean).join('　');
+    return `<li class="item${it.done?' done':''}${it.id===lastAddedId?' new':''}" ${cc(c)} data-id="${it.id}">
+      <button class="body" data-act="edit"><span class="t">${esc(it.text)}</span><span class="m">${esc(meta)}</span></button>
+      <button class="chk" data-act="toggle" aria-label="${it.done?'未完了に戻す':'済みにする'}">
+        <svg viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg>
+      </button></li>`;
+  }
+
+  function renderChrome(){
+    const active = items.filter(it => !it.done);
+    $('tabs').innerHTML =
+      `<button class="tab all" data-c="all" aria-pressed="${filter==='all'}"><b>${active.length}</b><span>すべて</span></button>` +
+      cats.map(c => `<button class="tab" ${cc(c)} data-c="${c.id}" aria-pressed="${filter===c.id}">
+        <b>${active.filter(it => it.cat === c.id).length}</b><span>${esc(c.name)}</span></button>`).join('');
+    $('cats').innerHTML = cats.map(c =>
+      `<button class="cat" ${cc(c)} data-c="${c.id}" aria-pressed="${addCat===c.id}">${esc(c.name)}</button>`).join('') +
+      `<button class="cat plus" data-plus aria-label="カテゴリを追加">＋</button>`;
+    $('text').placeholder = hintOf(catOf(addCat));
+  }
+
+  function render(){
+    const q = $('q').value.trim().toLowerCase();
+    const match = it => (filter === 'all' || it.cat === filter) &&
+      (!q || it.text.toLowerCase().includes(q) || (it.note||'').toLowerCase().includes(q));
+    const open = items.filter(it => !it.done && match(it)).sort((a,b) => b.created - a.created);
+    const done = items.filter(it => it.done && match(it)).sort((a,b) => (b.doneAt||0) - (a.doneAt||0));
+
+    $('list').innerHTML = open.map(rowHTML).join('');
+    $('doneList').innerHTML = done.map(rowHTML).join('');
+
+    const empty = $('empty');
+    empty.hidden = !!open.length;
+    if (!open.length) empty.textContent = q ? '見つかりませんでした' :
+      filter === 'all' ? '下の欄に書いて追加。思いついたらすぐどうぞ' : `「${catOf(filter).name}」はまだありません`;
+
+    $('doneToggle').hidden = !done.length;
+    $('doneToggle').textContent = (showDone ? '▾ ' : '▸ ') + `済み（${done.length}）`;
+    $('doneList').hidden = !showDone;
+    renderChrome();
+    lastAddedId = null;
+  }
+
+  function setAddCat(id){ addCat = id; store.set(KEY+':addcat', id); renderChrome(); }
+
+  function add(){
+    const text = $('text').value.trim(); if (!text) return;
+    const it = { id:uid(), cat:addCat, text, note:'', done:false, created:Date.now() };
+    const u = urlIn(text);
+    if (u && text !== u){ it.text = text.replace(u,'').trim(); it.note = u; }
+    items.push(it); lastAddedId = it.id; saveItems();
+    $('text').value = ''; $('addBtn').disabled = true;
+    if (filter !== 'all' && filter !== addCat) filter = 'all';
+    render(); $('text').focus();
+  }
+
+  function toast(msg, undoable = true){
+    $('toastMsg').textContent = msg; $('undoBtn').hidden = !undoable; $('toast').classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.remove('show'), 4000);
+  }
+  function snapshot(){ undoSnap = JSON.stringify({items, cats}); }
+
+  /* ---------- item edit ---------- */
+  function openEdit(id){
+    const it = items.find(x => x.id === id); if (!it) return;
+    editingId = id; editCat = it.cat;
+    $('editText').value = it.text; $('editNote').value = it.note || '';
+    paintEditCats(); updateLink();
+    $('editScrim').classList.add('open');
+  }
+  function paintEditCats(){
+    $('editCats').innerHTML = cats.map(c =>
+      `<button class="cat" ${cc(c)} data-c="${c.id}" aria-pressed="${editCat===c.id}">${esc(c.name)}</button>`).join('');
+  }
+  function updateLink(){
+    const u = urlIn($('editNote').value) || urlIn($('editText').value);
+    const a = $('editLink'); a.hidden = !u; if (u){ a.href = u; a.textContent = '開く：' + u; }
+  }
+
+  /* ---------- category manager ---------- */
+  function openCats(focusNew){
+    renderCatRows(); renderSwatches();
+    $('catScrim').classList.add('open');
+    if (focusNew) setTimeout(() => $('newName').focus(), 50);
+  }
+  function renderCatRows(){
+    $('catRows').innerHTML = cats.map(c => {
+      const n = items.filter(it => it.cat === c.id).length;
+      return `<div class="crow" data-id="${c.id}" ${cc(c)}>
+        <button class="dot" data-act="color" aria-label="${esc(c.name)}の色を変える"></button>
+        <input type="text" value="${esc(c.name)}" maxlength="12" aria-label="カテゴリ名">
+        <span class="cnum">${n}件</span>
+        <button class="x" data-act="remove" ${cats.length<2?'disabled':''}>削除</button>
+      </div>`;
+    }).join('');
+  }
+  function renderSwatches(){
+    $('newSwatches').innerHTML = COLORS.map(col =>
+      `<button class="sw" style="--c:${col}" data-col="${col}" aria-label="色 ${col}" aria-pressed="${col===newColor}"></button>`).join('');
+  }
+  function addCategory(){
+    const name = $('newName').value.trim(); if (!name) return;
+    if (cats.some(c => c.name === name)){ toast('同じ名前のカテゴリがあります', false); return; }
+    const c = { id:'c'+uid(), name, color:newColor };
+    cats.push(c); saveCats();
+    $('newName').value = ''; $('newAdd').disabled = true;
+    newColor = COLORS[(COLORS.indexOf(newColor) + 1) % COLORS.length];
+    addCat = c.id; store.set(KEY+':addcat', c.id);
+    renderCatRows(); renderSwatches(); render();
+  }
+
+  /* ---------- events ---------- */
+  $('text').addEventListener('input', e => $('addBtn').disabled = !e.target.value.trim());
+  $('form').addEventListener('submit', add);
+  $('cats').addEventListener('click', e => {
+    const b = e.target.closest('.cat'); if (!b) return;
+    if (b.hasAttribute('data-plus')) return openCats(true);
+    setAddCat(b.dataset.c); $('text').focus();
+  });
+  $('tabs').addEventListener('click', e => {
+    const b = e.target.closest('.tab'); if (!b) return;
+    filter = b.dataset.c; if (filter !== 'all') addCat = filter, store.set(KEY+':addcat', filter);
+    render();
+  });
+  $('q').addEventListener('input', render);
+  $('doneToggle').addEventListener('click', () => { showDone = !showDone; render(); });
+
+  function onListClick(e){
+    const btn = e.target.closest('[data-act]'); if (!btn) return;
+    const id = btn.closest('.item').dataset.id;
+    if (btn.dataset.act === 'edit') return openEdit(id);
+    const it = items.find(x => x.id === id);
+    snapshot(); it.done = !it.done; it.doneAt = it.done ? Date.now() : null;
+    saveItems(); render();
+    if (it.done) toast(`「${it.text.slice(0,12)}」を済みにしました`);
+  }
+  $('list').addEventListener('click', onListClick);
+  $('doneList').addEventListener('click', onListClick);
+
+  $('undoBtn').addEventListener('click', () => {
+    if (undoSnap){ const s = JSON.parse(undoSnap); items = s.items; cats = s.cats; undoSnap = null; saveItems(); saveCats(); render(); }
+    $('toast').classList.remove('show');
+  });
+
+  $('editCats').addEventListener('click', e => { const b = e.target.closest('.cat'); if (b){ editCat = b.dataset.c; paintEditCats(); } });
+  $('editNote').addEventListener('input', updateLink);
+  $('editText').addEventListener('input', updateLink);
+  $('saveBtn').addEventListener('click', () => {
+    const it = items.find(x => x.id === editingId); const text = $('editText').value.trim();
+    if (it && text){ it.text = text; it.note = $('editNote').value.trim(); it.cat = editCat; saveItems(); render(); }
+    closeAll();
+  });
+  $('delBtn').addEventListener('click', () => {
+    const it = items.find(x => x.id === editingId); if (!it) return;
+    snapshot(); items = items.filter(x => x.id !== editingId); saveItems(); closeAll(); render();
+    toast(`「${it.text.slice(0,12)}」を削除しました`);
+  });
+
+  // category rows
+  $('catRows').addEventListener('input', e => {
+    if (e.target.type !== 'text') return;
+    const c = cats.find(x => x.id === e.target.closest('.crow').dataset.id);
+    const v = e.target.value.trim(); if (!c || !v) return;
+    c.name = v; if (c.hint && !DEFAULT_CATS.some(d => d.id === c.id && d.name === v)) delete c.hint;
+    saveCats(); render();
+  });
+  $('catRows').addEventListener('click', e => {
+    const btn = e.target.closest('[data-act]'); if (!btn) return;
+    const c = cats.find(x => x.id === btn.closest('.crow').dataset.id); if (!c) return;
+    if (btn.dataset.act === 'color'){
+      c.color = COLORS[(COLORS.indexOf(c.color) + 1) % COLORS.length];
+      saveCats(); renderCatRows(); render(); return;
+    }
+    if (cats.length < 2) return;
+    const n = items.filter(it => it.cat === c.id).length;
+    const fallback = cats.find(x => x.id !== c.id);
+    if (n && !confirm(`「${c.name}」のメモ${n}件は「${fallback.name}」に移ります。削除しますか？`)) return;
+    snapshot();
+    items.forEach(it => { if (it.cat === c.id) it.cat = fallback.id; });
+    cats = cats.filter(x => x.id !== c.id);
+    if (filter === c.id) filter = 'all';
+    if (addCat === c.id) setAddCat(fallback.id);
+    saveItems(); saveCats(); renderCatRows(); render();
+    toast(`「${c.name}」を削除しました`);
+  });
+  $('newName').addEventListener('input', e => $('newAdd').disabled = !e.target.value.trim());
+  $('newName').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing){ e.preventDefault(); addCategory(); } });
+  $('newAdd').addEventListener('click', addCategory);
+  $('newSwatches').addEventListener('click', e => { const b = e.target.closest('.sw'); if (b){ newColor = b.dataset.col; renderSwatches(); } });
+  $('manageBtn').addEventListener('click', () => openCats(false));
+
+  function closeAll(){ document.querySelectorAll('.scrim').forEach(s => s.classList.remove('open')); editingId = null; }
+  document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeAll));
+  document.querySelectorAll('.scrim').forEach(s => s.addEventListener('click', e => { if (e.target === s) closeAll(); }));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAll(); });
+
+  // export / import (JSON, includes categories)
+  $('exportBtn').addEventListener('click', async () => {
+    const json = JSON.stringify({ cats, items });
+    try { await navigator.clipboard.writeText(json); toast('クリップボードにコピーしました', false); }
+    catch(e){ prompt('このテキストをコピーして保存してください', json); }
+  });
+  $('importBtn').addEventListener('click', () => {
+    const txt = prompt('書き出したテキストを貼り付けてください（今のメモに追加されます）');
+    if (!txt) return;
+    try {
+      const data = JSON.parse(txt);
+      const inItems = Array.isArray(data) ? data : data.items;
+      const inCats = Array.isArray(data) ? [] : (data.cats || []);
+      if (!Array.isArray(inItems)) throw 0;
+      snapshot();
+      inCats.forEach(c => { if (c && c.id && c.name && !cats.some(x => x.id === c.id)) cats.push({ id:c.id, name:c.name, color:c.color || COLORS[8], hint:c.hint }); });
+      const ids = new Set(items.map(x => x.id));
+      const added = inItems.filter(x => x && x.id && x.text && !ids.has(x.id))
+        .map(x => ({ ...x, cat: cats.some(c => c.id === x.cat) ? x.cat : cats[0].id }));
+      items = items.concat(added); saveItems(); saveCats(); render();
+      toast(`${added.length}件を読み込みました`);
+    } catch(e){ toast('読み込めませんでした。書き出したテキストをそのまま貼ってください', false); }
+  });
+
+  render();
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>
