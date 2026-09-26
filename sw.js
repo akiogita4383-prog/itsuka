@@ -1,6 +1,6 @@
 // いつか帳 Service Worker
 // 更新を配信するときは VERSION の数字を上げてください
-const VERSION = 'itsuka-v3';
+const VERSION = 'itsuka-v5';
 const SHELL = [
   './',
   './index.html',

@@ -120,8 +120,9 @@ ul{list-style:none;margin:0;padding:0}
 .photoActs button{flex:1;border:2px solid var(--line);background:var(--bg);border-radius:12px;padding:10px;font-size:14px}
 .photoActs .rm{flex:none;border-color:transparent;background:none;color:var(--danger)}
 .when{font-size:13px;color:var(--sub);margin:14px 0 0}
-.acts{display:flex;gap:8px;margin-top:18px}
-.acts button{flex:1;border:0;border-radius:12px;padding:12px;font-weight:700}
+.acts{display:flex;gap:6px;margin-top:18px}
+.acts button{flex:1;border:0;border-radius:12px;padding:12px 6px;font-weight:700;font-size:15px}
+.share{background:var(--bg);color:var(--linkc)}
 .save{background:var(--ink);color:var(--paper)}
 .del{background:none!important;color:var(--danger);flex:none!important;padding:12px 8px!important}
 .cancel{background:var(--bg)}
@@ -139,6 +140,11 @@ ul{list-style:none;margin:0;padding:0}
 .newcat button{flex:none;border:0;border-radius:12px;background:var(--ink);color:var(--paper);padding:0 16px;font-weight:700}
 .newcat button:disabled{opacity:.35}
 .help{font-size:12px;color:var(--sub);margin:6px 0 0}
+.sub{font-size:14px;margin:18px 0 4px}
+.steps{margin:4px 0 10px;padding-left:1.3em;font-size:14px;color:var(--sub)}
+.steps li{margin:3px 0}
+code{background:var(--bg);border-radius:6px;padding:1px 5px;font-size:12px}
+#recvUrl{font-size:13px}
 
 /* photo viewer */
 #viewScrim{align-items:center;background:rgba(10,12,18,.9)}
@@ -171,6 +177,7 @@ ul{list-style:none;margin:0;padding:0}
 
   <div class="foot">
     <button id="manageBtn">カテゴリを編集</button>
+    <button id="recvBtn">共有から追加</button>
     <button id="exportBtn">書き出す</button>
     <button id="importBtn">読み込む</button>
     <div class="usage" id="usage"></div>
@@ -221,7 +228,24 @@ ul{list-style:none;margin:0;padding:0}
     <div class="acts">
       <button class="del" id="delBtn">削除</button>
       <button class="cancel" data-close>閉じる</button>
+      <button class="share" id="shareBtn">共有</button>
       <button class="save" id="saveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 受け取り（共有シート・ショートカットから） -->
+<div class="scrim" id="addScrim">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+    <h2 id="addTitle">受け取ったページを追加</h2>
+    <div class="scroller" id="addCats"></div>
+    <label for="addText">内容</label>
+    <input id="addText" type="text">
+    <label for="addUrl">URL</label>
+    <input id="addUrl" type="url" inputmode="url" autocapitalize="off" spellcheck="false" placeholder="https://">
+    <div class="acts">
+      <button class="cancel" data-close>やめる</button>
+      <button class="save" id="addSave">追加する</button>
     </div>
   </div>
 </div>
@@ -239,6 +263,35 @@ ul{list-style:none;margin:0;padding:0}
     <div class="swatches" id="newSwatches" role="group" aria-label="色"></div>
     <p class="help">名前は直接書き換えられます。丸をタップすると色が変わります。</p>
     <div class="acts"><button class="save" data-close>完了</button></div>
+  </div>
+</div>
+
+<!-- 共有から追加する設定 -->
+<div class="scrim" id="recvScrim">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="recvTitle">
+    <h2 id="recvTitle">ほかのアプリから追加する</h2>
+    <p class="help">Safariで見ているページを、このアプリに送って登録できます。</p>
+
+    <h3 class="sub">iPhone（ショートカットを1つ作る）</h3>
+    <ol class="steps">
+      <li>ショートカットApp →「＋」で新規作成</li>
+      <li>設定（ⓘ）で「共有シートに表示」をオン、受け取る種類を「URL」だけにする</li>
+      <li>アクション「URLをエンコード」を追加し、入力を「ショートカットの入力」にする</li>
+      <li>アクション「URLを開く」を追加し、下の文字列のうしろにエンコード結果をつなげる</li>
+      <li>名前を「いつか帳に追加」にして保存。以降Safariの共有メニューから使えます</li>
+    </ol>
+    <div class="urlrow">
+      <input id="recvUrl" type="text" readonly>
+      <button class="open" id="recvCopy" type="button">コピー</button>
+    </div>
+
+    <h3 class="sub">Android</h3>
+    <p class="help">Chromeで「アプリをインストール」しておくと、共有メニューに「いつか帳」が出ます。そのまま選べば追加できます。</p>
+
+    <h3 class="sub">カテゴリを決めて送る</h3>
+    <p class="help">上のアドレスの末尾に <code>&amp;cat=行きたい</code> のようにカテゴリ名を足すと、そのカテゴリが最初から選ばれます。</p>
+
+    <div class="acts"><button class="save" data-close>閉じる</button></div>
   </div>
 </div>
 
@@ -423,6 +476,83 @@ ul{list-style:none;margin:0;padding:0}
     $('fileAdd').value = ''; $('addBtn').disabled = !$('text').value.trim();
   }
 
+  /* ---------- 受け取り（Safariの共有シート・ショートカットなど） ---------- */
+  let intakeCat = null;
+  function paintIntakeCats(){
+    $('addCats').innerHTML = cats.map(c =>
+      `<button class="cat" ${cc(c)} data-c="${c.id}" aria-pressed="${intakeCat===c.id}">${esc(c.name)}</button>`).join('');
+  }
+  function openIntake(text, url){
+    intakeCat = addCat;
+    $('addText').value = text; $('addUrl').value = url;
+    paintIntakeCats();
+    $('addScrim').classList.add('open');
+  }
+  function checkIncoming(){
+    const p = new URLSearchParams(location.search);
+    const pt = (p.get('title') || '').trim();
+    const px = (p.get('text') || '').trim();
+    const pu = (p.get('url') || '').trim();
+    if (!pt && !px && !pu) return;
+
+    let u = safeUrl(pu) || urlIn(px) || urlIn(pt) || '';
+    if (!u && pu) u = safeUrl('https://' + pu);
+    let t = pt || px.replace(u, '').trim();
+    if (!t) t = u ? host(u) : '';
+    history.replaceState(null, '', location.pathname);
+    if (!t && !u) return;
+
+    const want = (p.get('cat') || '').trim();
+    const c = cats.find(x => x.id === want || x.name === want);
+    if (c) addCat = c.id;
+    openIntake(t, u);
+  }
+  $('addCats').addEventListener('click', e => { const b = e.target.closest('.cat'); if (b){ intakeCat = b.dataset.c; paintIntakeCats(); } });
+  $('addSave').addEventListener('click', () => {
+    const t = $('addText').value.trim();
+    let u = $('addUrl').value.trim();
+    if (u && !/^https?:\/\//i.test(u)) u = 'https://' + u;
+    u = safeUrl(u);
+    if (!t && !u) return closeAll();
+    const it = { id:uid(), cat:intakeCat || cats[0].id, text:t || host(u), url:u, note:'', img:null, done:false, created:Date.now() };
+    items.push(it);
+    if (!saveItems()){ items.pop(); return; }
+    lastAddedId = it.id; filter = 'all'; setAddCat(it.cat);
+    closeAll(); render();
+    toast(`「${it.text.slice(0,12)}」を追加しました`);
+  });
+
+  /* ---------- 共有（1件ずつ） ---------- */
+  function dataUrlToFile(d, name){
+    const [head, b64] = d.split(',');
+    const mime = (head.match(/:(.*?);/) || [,'image/jpeg'])[1];
+    const bin = atob(b64), u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    return new File([u8], name, { type:mime });
+  }
+
+  async function shareItem(it){
+    const c = catOf(it.cat);
+    const text = [`【${c.name}】${it.text}`, it.note || null].filter(Boolean).join('\n');
+    const data = { title: it.text, text };
+    if (it.url) data.url = it.url;
+    try{
+      if (it.img && navigator.canShare){
+        const f = dataUrlToFile(it.img, 'itsuka.jpg');
+        if (navigator.canShare({ files:[f] })){ await navigator.share({ ...data, files:[f] }); return; }
+      }
+      if (navigator.share){ await navigator.share(data); return; }
+      throw new Error('no-share');
+    }catch(err){
+      if (err && err.name === 'AbortError') return;      // 送るのをやめた
+      const full = [text, it.url || null].filter(Boolean).join('\n');
+      try{
+        await navigator.clipboard.writeText(full);
+        toast('コピーしました。貼り付けて送れます', false);
+      }catch(e2){ prompt('このテキストをコピーして送ってください', full); }
+    }
+  }
+
   /* ---------- 編集シート ---------- */
   function openEdit(id){
     const it = items.find(x => x.id === id); if (!it) return;
@@ -543,8 +673,8 @@ ul{list-style:none;margin:0;padding:0}
   });
   $('rmImg').addEventListener('click', () => { editImg = null; paintImg(); });
 
-  $('saveBtn').addEventListener('click', () => {
-    const it = items.find(x => x.id === editingId); if (!it) return closeAll();
+  function applyEdit(){
+    const it = items.find(x => x.id === editingId); if (!it) return null;
     const before = JSON.stringify(it);
     let u = $('editUrl').value.trim();
     if (u && !/^https?:\/\//i.test(u)) u = 'https://' + u;
@@ -552,8 +682,13 @@ ul{list-style:none;margin:0;padding:0}
     it.url = safeUrl(u);
     it.note = $('editNote').value.trim();
     it.cat = editCat; it.img = editImg;
-    if (!saveItems()){ Object.assign(it, JSON.parse(before)); return; }
-    render(); closeAll();
+    if (!saveItems()){ Object.assign(it, JSON.parse(before)); return null; }
+    return it;
+  }
+  $('saveBtn').addEventListener('click', () => { if (applyEdit()){ render(); closeAll(); } });
+  $('shareBtn').addEventListener('click', async () => {
+    const it = applyEdit(); if (!it) return;
+    render(); await shareItem(it);
   });
   $('delBtn').addEventListener('click', () => {
     const it = items.find(x => x.id === editingId); if (!it) return;
@@ -592,6 +727,16 @@ ul{list-style:none;margin:0;padding:0}
   $('newAdd').addEventListener('click', addCategory);
   $('newSwatches').addEventListener('click', e => { const b = e.target.closest('.sw'); if (b){ newColor = b.dataset.col; renderSwatches(); } });
   $('manageBtn').addEventListener('click', () => openCats(false));
+  $('recvBtn').addEventListener('click', () => {
+    const base = location.href.split('?')[0].split('#')[0];
+    $('recvUrl').value = base + '?url=';
+    $('recvScrim').classList.add('open');
+  });
+  $('recvCopy').addEventListener('click', async () => {
+    const v = $('recvUrl').value;
+    try{ await navigator.clipboard.writeText(v); toast('アドレスをコピーしました', false); }
+    catch(e){ $('recvUrl').select(); toast('選択したのでコピーしてください', false); }
+  });
 
   function closeAll(){ document.querySelectorAll('.scrim').forEach(s => s.classList.remove('open')); editingId = null; }
   document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeAll));
@@ -638,6 +783,7 @@ ul{list-style:none;margin:0;padding:0}
   });
 
   render();
+  checkIncoming();
 })();
 </script>
 <script>
